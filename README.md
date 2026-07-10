@@ -1,0 +1,1 @@
+# mini-curso-devops2026-ec2
