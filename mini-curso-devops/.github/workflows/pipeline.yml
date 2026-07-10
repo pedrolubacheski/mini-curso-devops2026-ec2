@@ -1,0 +1,71 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Curso DevOps - Pipeline EC2
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: "20"
+  EC2_PUBLIC_DNS: "ec2-98-91-27-212.compute-1.amazonaws.com"
+
+# https://github.com/marketplace?type=actions
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Repo
+        uses: actions/checkout@v4
+
+      - name: Prepara S.O para Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Ajuste path e Adiciona Files
+        run: |
+          pwd && ls -alh 
+          cd mini-curso-devops
+          cat << EOF >> vite.config.js
+          import { defineConfig } from 'vite'
+          // https://vitejs.dev/config/
+          export default defineConfig({
+          // Adicione esta linha:
+          base: '/mini-curso-devops/', 
+          } )
+          EOF
+          ls -alh
+
+      - name: Instala dependencias e Build
+        run: |
+          pwd && ls -alh   
+          cd mini-curso-devops       
+          npm install
+          npm run build
+
+      - name: Fazer o Upload do codigo
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-files
+          path: mini-curso-devops/dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download do Arquivos
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: dist
+
+      - name: Enviar arquivos para Server
+        run: |
+          ls -alh 
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_KEY }}" > ~/.ssh/aws_key.pem
+          chmod 600 ~/.ssh/aws_key.pem
+          scp -i ~/.ssh/aws_key.pem -o StrictHostKeyChecking=no -r dist/* ubuntu@${{ env.EC2_PUBLIC_DNS }}:/var/www/html/mini-curso-devops
