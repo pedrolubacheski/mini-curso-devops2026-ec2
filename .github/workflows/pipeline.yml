@@ -68,4 +68,16 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.AWS_KEY }}" > ~/.ssh/aws_key.pem
           chmod 600 ~/.ssh/aws_key.pem
-          scp -i ~/.ssh/aws_key.pem -o StrictHostKeyChecking=no -r dist/* ubuntu@${{ env.EC2_PUBLIC_DNS }}:/var/www/html/mini-curso-devops
+
+          # 1. Cria a pasta temporária na home do usuário ubuntu
+          ssh -i ~/.ssh/aws_key.pem -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_PUBLIC_DNS }} "mkdir -p ~/temp-dist"
+
+          # 2. Envia os arquivos para essa pasta temporária segura
+          scp -i ~/.ssh/aws_key.pem -o StrictHostKeyChecking=no -r dist/* ubuntu@${{ env.EC2_PUBLIC_DNS }}:~/temp-dist/
+
+          # 3. Usa sudo via SSH para garantir a criação da pasta final e mover os arquivos com permissão total
+          ssh -i ~/.ssh/aws_key.pem -o StrictHostKeyChecking=no ubuntu@${{ env.EC2_PUBLIC_DNS }} "
+            sudo mkdir -p /var/www/html/mini-curso-devops && \
+            sudo cp -r ~/temp-dist/* /var/www/html/mini-curso-devops/ && \
+            sudo rm -rf ~/temp-dist
+          "
